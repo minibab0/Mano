@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>내 친구들과 실시간 채팅</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="main-screen" class="screen">
+        <header>
+            <div id="clock-container">
+                <span id="current-time">00:00:00</span>
+            </div>
+            <h2>Direct Messages</h2>
+        </header>
+        
+        <div class="chat-list" id="chat-list">
+            <div class="chat-item" onclick="openChat('방구석 코딩모임 (3)')">
+                <div class="profile-pic group"></div>
+                <div class="chat-info">
+                    <div class="chat-name">방구석 코딩모임 (3) <span class="time-ago">방금 전</span></div>
+                    <div class="chat-preview">오늘 배드민턴 칠 사람?</div>
+                </div>
+            </div>
+            <div class="chat-item" onclick="openChat('지훈이')">
+                <div class="profile-pic"></div>
+                <div class="chat-info">
+                    <div class="chat-name">지훈이 <span class="time-ago">10분 전</span></div>
+                    <div class="chat-preview">이따 피시방 ㄱ?</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="chat-screen" class="screen" style="display: none;">
+        <header>
+            <button onclick="closeChat()">⬅ 뒤로</button>
+            <h2 id="room-name">채팅방 이름</h2>
+            <div style="width: 50px;"></div> </header>
+
+        <div class="chat-messages" id="chat-messages">
+            <div class="message received">
+                <div class="profile-pic small"></div>
+                <div class="message-content">안녕! 사이트 예쁘게 만들었네</div>
+            </div>
+            <div class="message sent">
+                <div class="message-content">그치? 깃허브로 올린거야.</div>
+                <span class="read-receipt">1</span> </div>
+            
+            <div class="typing-indicator" id="typing-indicator" style="display: none;">
+                지훈님이 입력 중...
+            </div>
+        </div>
+
+        <div class="chat-input-area">
+            <input type="text" id="message-input" placeholder="메시지를 입력하세요..." oninput="checkTyping()">
+            <button onclick="sendMessage()">전송</button>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
