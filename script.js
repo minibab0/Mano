@@ -1,67 +1,114 @@
-// 1. 메인 화면 현재 시간 표시 로직
+// 1. 고객님이 방금 보내주신 최신 설정값 적용
+const firebaseConfig = {
+  apiKey: "AIzaSyDyQGHWY1t1v1yRiiJ20u1PCh6FpIuuTYQ",
+  authDomain: "minibabo-9d0dc.firebaseapp.com",
+  projectId: "minibabo-9d0dc",
+  storageBucket: "minibabo-9d0dc.firebasestorage.app",
+  messagingSenderId: "815303849059",
+  appId: "1:815303849059:web:afc473357a285cc9d73456",
+  measurementId: "G-J9FTRFVZ0S",
+  // Realtime Database 주소 (싱가포르 서버 기준)
+  databaseURL: "https://minibabo-9d0dc-default-rtdb.asia-southeast1.firebasedatabase.app"
+};
+
+// 파이어베이스 라이브러리 불러오기
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import { getDatabase, ref, push, onChildAdded } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+
+// 내 아이디 (랜덤 생성)
+const myId = Math.random().toString(36).substring(7);
+
+// 시계 업데이트
 function updateClock() {
     const now = new Date();
-    const hours = String(now.getHours()).padStart(2, '0');
-    const minutes = String(now.getMinutes()).padStart(2, '0');
-    const seconds = String(now.getSeconds()).padStart(2, '0');
-    document.getElementById('current-time').textContent = `${hours}:${minutes}:${seconds}`;
+    document.getElementById('current-time').textContent = now.toLocaleTimeString('ko-KR', { hour12: false });
 }
-
-// 1초마다 시계 업데이트
 setInterval(updateClock, 1000);
-updateClock(); // 초기 실행
+updateClock();
 
-// 2. 화면 전환 로직 (채팅 목록 <-> 채팅방)
-const mainScreen = document.getElementById('main-screen');
-const chatScreen = document.getElementById('chat-screen');
-const roomNameDisplay = document.getElementById('room-name');
+let currentRoom = "";
 
-function openChat(roomName) {
-    mainScreen.style.display = 'none';
-    chatScreen.style.display = 'flex';
-    roomNameDisplay.textContent = roomName;
-    
-    // 채팅방에 들어올 때 스크롤을 맨 아래로 내림
+// [방 만들기]
+window.createRoom = () => {
+    const name = prompt("채팅방 이름을 정해주세요:");
+    if (!name) return;
+    const code = Math.floor(1000 + Math.random() * 9000).toString(); // 4자리 코드
+    addRoomToUI(name, code);
+    alert(`방이 만들어졌어요!\n친구에게 코드 [ ${code} ]를 알려주세요.`);
+};
+
+// [코드로 입장]
+window.joinRoom = () => {
+    const code = prompt("친구에게 받은 4자리 코드를 입력하세요:");
+    if (code) addRoomToUI("입장한 채팅방", code);
+};
+
+// 메인 화면에 방 목록 추가
+function addRoomToUI(name, code) {
+    const chatList = document.getElementById('chat-list');
+    const emptyMsg = document.querySelector('.empty-msg');
+    if (emptyMsg) emptyMsg.style.display = 'none';
+
+    const item = document.createElement('div');
+    item.className = 'chat-item';
+    item.onclick = () => openChat(name, code);
+    item.innerHTML = `
+        <div class="profile-icon"></div>
+        <div class="chat-info">
+            <div class="chat-name">${name}</div>
+            <div class="chat-code">코드: ${code}</div>
+        </div>`;
+    chatList.prepend(item);
+}
+
+// 채팅방 열기 및 실시간 연결
+function openChat(name, code) {
+    currentRoom = code;
+    document.getElementById('main-screen').style.display = 'none';
+    document.getElementById('chat-screen').style.display = 'flex';
+    document.getElementById('room-name').textContent = name;
+    document.getElementById('room-code-display').textContent = `코드: ${code}`;
     const chatMessages = document.getElementById('chat-messages');
-    chatMessages.scrollTop = chatMessages.scrollHeight;
+    chatMessages.innerHTML = ''; 
+
+    // 서버(DB)에서 메시지 실시간 감시
+    const msgRef = ref(db, `rooms/${code}/messages`);
+    onChildAdded(msgRef, (snapshot) => {
+        const data = snapshot.val();
+        displayMessage(data.text, data.sender === myId ? 'sent' : 'received');
+    });
 }
 
-function closeChat() {
-    chatScreen.style.display = 'none';
-    mainScreen.style.display = 'flex';
-}
+// 메시지 전송
+window.sendMessage = () => {
+    const input = document.getElementById('message-input');
+    const text = input.value.trim();
+    if (!text || !currentRoom) return;
 
-// 3. 임시 메시지 전송 및 타이핑 표시 로직
-const messageInput = document.getElementById('message-input');
-const typingIndicator = document.getElementById('typing-indicator');
-const chatMessages = document.getElementById('chat-messages');
+    push(ref(db, `rooms/${currentRoom}/messages`), {
+        text: text,
+        sender: myId,
+        timestamp: Date.now()
+    });
+    input.value = '';
+};
 
-function checkTyping() {
-    // 사용자가 타자를 치고 있으면 (글자가 1개라도 있으면) 표시
-    if (messageInput.value.length > 0) {
-        typingIndicator.style.display = 'block';
-    } else {
-        typingIndicator.style.display = 'none';
-    }
-}
-
-function sendMessage() {
-    const text = messageInput.value.trim();
-    if (text === '') return;
-
-    // 내가 보낸 메시지 HTML 생성 (안읽음 표시 '1' 포함)
-    const messageHTML = `
-        <div class="message sent">
+// 말풍선 그리기
+function displayMessage(text, type) {
+    const chatMessages = document.getElementById('chat-messages');
+    const html = `
+        <div class="message ${type}">
             <div class="message-content">${text}</div>
-            <span class="read-receipt">1</span>
-        </div>
-    `;
-
-    // 타이핑 표시 위에 메시지 추가
-    typingIndicator.insertAdjacentHTML('beforebegin', messageHTML);
-    
-    // 입력창 초기화 및 스크롤 내리기
-    messageInput.value = '';
-    typingIndicator.style.display = 'none';
+            ${type === 'sent' ? '<span class="read-receipt">1</span>' : ''}
+        </div>`;
+    chatMessages.insertAdjacentHTML('beforeend', html);
     chatMessages.scrollTop = chatMessages.scrollHeight;
 }
+
+window.closeChat = () => {
+    document.getElementById('chat-screen').style.display = 'none';
+    document.getElementById('main-screen').style.display = 'flex';
+};
